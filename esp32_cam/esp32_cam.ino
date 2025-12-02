@@ -5,6 +5,8 @@
 #include <base64.h>
 #include "esp_system.h"
 #include "esp_psram.h"
+
+// Secrets and config options. Refer to .example file.
 #include "secrets.h"
 
 // MQTT client
