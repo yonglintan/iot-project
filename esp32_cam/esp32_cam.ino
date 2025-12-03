@@ -5,6 +5,7 @@
 #include <base64.h>
 #include "esp_system.h"
 #include "esp_psram.h"
+// #include <ArduinoJson.h>
 
 // Secrets and config options. Refer to .example file.
 #include "secrets.h"
@@ -13,12 +14,10 @@
 WiFiClientSecure net;
 PubSubClient client(net);
 
-const char* mqtt_topic = "esp32/cam/image";
+const char* mqtt_topic = "esp32/camera/pub";
 
 void setup() {
   Serial.begin(115200);
-
-  Serial.println(client.getBufferSize());
 
   // Connect WiFi
   WiFi.begin(ssid, password);
@@ -37,6 +36,9 @@ void setup() {
   net.setPrivateKey(private_key);
 
   client.setServer(mqtt_server, mqtt_port);
+  client.setBufferSize(100000);
+  Serial.print("MQTT send/receive buffer size: ");
+  Serial.println(client.getBufferSize());
 
   if (client.connect(deviceId)) {
     Serial.println("Connected to AWS IoT!");
@@ -74,8 +76,7 @@ void setup() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   if (psramFound()) {
-    // config.frame_size = FRAMESIZE_VGA;  // 640x480
-    config.frame_size = FRAMESIZE_XGA;
+    config.frame_size = FRAMESIZE_VGA;  // 640x480
     config.jpeg_quality = 12;
     config.fb_count = 2;
   } else {
@@ -94,10 +95,39 @@ void setup() {
 
 }
 
+// --- Publish JSON camera data via MQTT ---
+void publishCameraMessage(String base64Img) {
+  // StaticJsonDocument<256000> doc;
+  // doc["device"] = String(deviceId);
+  // doc["image"] = base64Img;
+  // doc["timestamp"] = millis();
+
+  // char jsonBuffer[256000];
+  // serializeJson(doc, jsonBuffer, sizeof(jsonBuffer));
+
+  if (client.connected()) {
+    String payload = "{\"device\":\"" + String(deviceId) + "\",\"image\":\"" + base64Img + "\"}";
+    bool ok = client.publish(mqtt_topic, payload.c_str());
+    // bool ok = client.publish(mqtt_topic, jsonBuffer);
+    if (ok) {
+      // Serial.println("Published to camera topic: ");
+      // Serial.println(jsonBuffer);
+      Serial.println("✅ Publish OK");
+    } else {
+      // Serial.println("Publish to camera topic failed!");
+      Serial.println("❌ Publish failed");
+    }
+  } else {
+    Serial.println("MQTT not connected, skip publish to camera topic.");
+  }
+}
+
 void loop() {
   if (!client.connected()) {
     Serial.println("Client disconnected, retrying");
     client.connect(deviceId);
+    delay(1000);
+    return;
   }
   
   camera_fb_t * fb = esp_camera_fb_get();
@@ -113,11 +143,13 @@ void loop() {
 
   esp_camera_fb_return(fb);
 
-  String payload = "{\"deviceId\":\"" + String(deviceId) + "\",\"imageData\":\"" + encoded + "\"}";
-  Serial.printf("✅ Payload size: %d bytes\n", payload.length());
+  publishCameraMessage(encoded);
 
-  boolean result = client.publish(mqtt_topic, payload.c_str());
-  Serial.println(result ? "✅ Publish OK" : "❌ Publish failed");
+  // String payload = "{\"deviceId\":\"" + String(deviceId) + "\",\"imageData\":\"" + encoded + "\"}";
+  // Serial.printf("✅ Payload size: %d bytes\n", payload.length());
 
-  delay(10000); // every 10 seconds
+  // boolean result = client.publish(mqtt_topic, payload.c_str());
+  // Serial.println(result ? "✅ Publish OK" : "❌ Publish failed");
+
+  delay(5000); // every 5 seconds
 }
