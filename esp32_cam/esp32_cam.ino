@@ -5,7 +5,6 @@
 #include <base64.h>
 #include "esp_system.h"
 #include "esp_psram.h"
-// #include <ArduinoJson.h>
 
 // Secrets and config options. Refer to .example file.
 #include "secrets.h"
@@ -97,24 +96,12 @@ void setup() {
 
 // --- Publish JSON camera data via MQTT ---
 void publishCameraMessage(String base64Img) {
-  // StaticJsonDocument<256000> doc;
-  // doc["device"] = String(deviceId);
-  // doc["image"] = base64Img;
-  // doc["timestamp"] = millis();
-
-  // char jsonBuffer[256000];
-  // serializeJson(doc, jsonBuffer, sizeof(jsonBuffer));
-
   if (client.connected()) {
     String payload = "{\"device\":\"" + String(deviceId) + "\",\"image\":\"" + base64Img + "\"}";
     bool ok = client.publish(mqtt_topic, payload.c_str());
-    // bool ok = client.publish(mqtt_topic, jsonBuffer);
     if (ok) {
-      // Serial.println("Published to camera topic: ");
-      // Serial.println(jsonBuffer);
       Serial.println("✅ Publish OK");
     } else {
-      // Serial.println("Publish to camera topic failed!");
       Serial.println("❌ Publish failed");
     }
   } else {
@@ -144,12 +131,6 @@ void loop() {
   esp_camera_fb_return(fb);
 
   publishCameraMessage(encoded);
-
-  // String payload = "{\"deviceId\":\"" + String(deviceId) + "\",\"imageData\":\"" + encoded + "\"}";
-  // Serial.printf("✅ Payload size: %d bytes\n", payload.length());
-
-  // boolean result = client.publish(mqtt_topic, payload.c_str());
-  // Serial.println(result ? "✅ Publish OK" : "❌ Publish failed");
-
-  delay(5000); // every 5 seconds
+  
+  delay(2000); // every 2 seconds
 }
